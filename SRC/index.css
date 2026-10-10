@@ -1,0 +1,32 @@
+/* Global Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Base Document Styles */
+body {
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+/* Layout Clean-up for Form Inputs */
+input, 
+select, 
+textarea {
+  display: block;
+  width: 100%;
+  font: inherit;
+}
+
+/* Button Reset */
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Heading Reset */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: bold;
+}
