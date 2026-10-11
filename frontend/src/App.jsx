@@ -1,10 +1,7 @@
+import Login from "./pages/Login.jsx";
+
 function App() {
-  return (
-    <div>
-      <h1>BiteCraft</h1>
-      <p>Food Menu Management System</p>
-    </div>
-  );
+  return <Login />;
 }
 
 export default App;
