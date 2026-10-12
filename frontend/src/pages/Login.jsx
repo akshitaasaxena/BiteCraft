@@ -1,10 +1,10 @@
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import apiRequest from "../services/api";
 import "./Login.css";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:3000/api";
-
 function Login() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,25 +29,31 @@ function Login() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const data = await apiRequest("/auth/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({ email: email.trim(), password }),
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.token) {
+      if (data.token) {
         localStorage.setItem("token", data.token);
         setPassword("");
         setSuccess("You are now signed in.");
+
+        try {
+          const payload = JSON.parse(atob(data.token.split(".")[1]));
+          if (payload.role === "admin") {
+            navigate("/admin");
+          } else {
+            navigate("/menu");
+          }
+        } catch {
+          navigate("/menu");
+        }
       } else {
         setError("Email or password is incorrect.");
       }
-    } catch {
-      setError("Unable to connect. Please try again.");
+    } catch (err) {
+      setError(err.message || "Unable to connect. Please try again.");
     }
 
     setLoading(false);
@@ -105,6 +111,10 @@ function Login() {
           <button className="login-submit" type="submit" disabled={loading}>
             {loading ? "Signing in..." : "Sign In"}
           </button>
+
+          <p style={{ margin: "16px 0 0", textAlign: "center", fontSize: "0.95rem" }}>
+            Don't have an account? <Link to="/register">Register</Link>
+          </p>
         </form>
       </section>
     </main>
