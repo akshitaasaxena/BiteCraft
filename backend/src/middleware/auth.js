@@ -1,30 +1,31 @@
 const jwt = require("jsonwebtoken");
 
 const auth = (req, res, next) => {
-    // Token can come from the Authorization header ("Bearer <token>")
-    // or from the httpOnly cookie set during login
+    // 1. Check Authorization header: Bearer <token>
+    // 2. Check signed or unsigned cookies: req.cookies?.token
+    let token = null;
     const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith("Bearer ")
-        ? authHeader.split(" ")[1]
-        : req.cookies?.token;
+
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.split(" ")[1];
+    } else if (req.cookies?.token) {
+        token = req.cookies.token;
+    }
 
     if (!token) {
         return res.status(401).json({
-            message: "No token provided"
+            message: "Authentication required. No token provided via cookie or Bearer authorization header."
         });
     }
 
     try {
-        // Verify token using the secret key
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-        // Attach decoded payload (userId, role) to req.user
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || "default_fallback_secret_key");
         req.user = decoded;
-
         next();
     } catch (err) {
+        const isExpired = err.name === "TokenExpiredError";
         return res.status(401).json({
-            message: "Invalid or expired token"
+            message: isExpired ? "Token has expired. Please log in again." : "Invalid authentication token."
         });
     }
 };

@@ -2,12 +2,43 @@ const Food = require("../models/Fooditem.js");
 
 const foodController = {
     getFoods: async (req, res) => {
-        const foods = await Food.find();
-        res.json(foods);
+        try {
+            const foods = await Food.find();
+            return res.json(foods);
+        } catch (err) {
+            console.error("getFoods error:", err);
+            return res.status(500).json({
+                message: "Failed to fetch food items"
+            });
+        }
     },
+
     getFoodById: async (req, res) => {
-        res.status(501).json({ message: "Not implemented" });
+        try {
+            const food = await Food.findById(req.params.id);
+
+            if (!food) {
+                return res.status(404).json({
+                    message: "Food item not found"
+                });
+            }
+
+            return res.json(food);
+        } catch (err) {
+            console.error("getFoodById error:", err);
+
+            if (err.name === "CastError") {
+                return res.status(400).json({
+                    message: "Invalid food item ID"
+                });
+            }
+
+            return res.status(500).json({
+                message: "Failed to fetch food item"
+            });
+        }
     },
+
     createFood: async (req, res) => {
         try {
             const {
@@ -19,17 +50,25 @@ const foodController = {
                 image
             } = req.body;
 
-            if (!name || !category || price === undefined) {
+            if (
+                !name?.trim() ||
+                !category?.trim() ||
+                price === undefined ||
+                price === null ||
+                price === ""
+            ) {
                 return res.status(400).json({
                     message: "Name, category and price are required"
                 });
             }
 
+            const numericPrice = Number(price);
+
             if (
                 typeof name !== "string" ||
                 typeof category !== "string" ||
-                typeof price !== "number" ||
-                price < 0 ||
+                !Number.isFinite(numericPrice) ||
+                numericPrice < 0 ||
                 (available !== undefined && typeof available !== "boolean")
             ) {
                 return res.status(400).json({
@@ -38,27 +77,37 @@ const foodController = {
             }
 
             const food = await Food.create({
+                name: name.trim(),
+                category: category.trim(),
+                price: numericPrice,
+                description:
+                    typeof description === "string" ? description.trim() : "",
+                available: available !== undefined ? available : true,
+                image: typeof image === "string" ? image : ""
+            });
+
+            return res.status(201).json({
+                message: "Food item created successfully",
+                food
+            });
+        } catch (err) {
+            console.error("createFood error:", err);
+            return res.status(500).json({
+                message: "Failed to create food item"
+            });
+        }
+    },
+
+    updateFood: async (req, res) => {
+        try {
+            const {
                 name,
                 category,
                 price,
                 description,
                 available,
                 image
-            });
-
-            return res.status(201).json(food);
-
-        } catch (error) {
-            console.error(error);
-
-            return res.status(500).json({
-                message: "Failed to create food"
-            });
-        }
-    },
-    updateFood: async (req, res) => {
-        try {
-            const { name, category, price, description, available, image } = req.body;
+            } = req.body;
 
             if (
                 name === undefined &&
@@ -74,20 +123,41 @@ const foodController = {
             }
 
             if (
-                (name !== undefined && typeof name !== "string") ||
-                (category !== undefined && typeof category !== "string") ||
-                (price !== undefined && (typeof price !== "number" || price < 0)) ||
-                (available !== undefined && typeof available !== "boolean")
+                (name !== undefined &&
+                    (typeof name !== "string" || !name.trim())) ||
+                (category !== undefined &&
+                    (typeof category !== "string" || !category.trim())) ||
+                (price !== undefined &&
+                    (price === null ||
+                        price === "" ||
+                        !Number.isFinite(Number(price)) ||
+                        Number(price) < 0)) ||
+                (description !== undefined &&
+                    typeof description !== "string") ||
+                (available !== undefined &&
+                    typeof available !== "boolean") ||
+                (image !== undefined && typeof image !== "string")
             ) {
                 return res.status(400).json({
                     message: "Invalid food details"
                 });
             }
 
+            const updateData = {};
+
+            if (name !== undefined) updateData.name = name.trim();
+            if (category !== undefined) updateData.category = category.trim();
+            if (price !== undefined) updateData.price = Number(price);
+            if (description !== undefined) {
+                updateData.description = description.trim();
+            }
+            if (available !== undefined) updateData.available = available;
+            if (image !== undefined) updateData.image = image;
+
             const food = await Food.findByIdAndUpdate(
                 req.params.id,
-                req.body,
-                { new: true }
+                updateData,
+                { new: true, runValidators: true }
             );
 
             if (!food) {
@@ -96,18 +166,51 @@ const foodController = {
                 });
             }
 
-            return res.status(200).json(food);
+            return res.json({
+                message: "Food item updated successfully",
+                food
+            });
+        } catch (err) {
+            console.error("updateFood error:", err);
 
-        } catch (error) {
-            console.error(error);
+            if (err.name === "CastError") {
+                return res.status(400).json({
+                    message: "Invalid food item ID"
+                });
+            }
 
             return res.status(500).json({
-                message: "Failed to update food"
+                message: "Failed to update food item"
             });
         }
     },
+
     deleteFood: async (req, res) => {
-        res.status(501).json({ message: "Not implemented" });
+        try {
+            const deletedFood = await Food.findByIdAndDelete(req.params.id);
+
+            if (!deletedFood) {
+                return res.status(404).json({
+                    message: "Food item not found"
+                });
+            }
+
+            return res.json({
+                message: "Food item deleted successfully"
+            });
+        } catch (err) {
+            console.error("deleteFood error:", err);
+
+            if (err.name === "CastError") {
+                return res.status(400).json({
+                    message: "Invalid food item ID"
+                });
+            }
+
+            return res.status(500).json({
+                message: "Failed to delete food item"
+            });
+        }
     }
 };
 

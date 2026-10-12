@@ -2,61 +2,46 @@ const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
+const getCookieOptions = () => ({
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    maxAge: 24 * 60 * 60 * 1000
+});
+
 const register = async (req, res) => {
-    const { name, email, password } = req.body;
+    try {
+        const { name, email, password } = req.body;
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    await User.create({
-        name,
-        email,
-        password: hashedPassword,
-        role: "user"
-    });
-
-    res.json({
-        message: "User registered successfully"
-    });
-};
-
-const login = async (req, res) => {
-    const { email, password } = req.body;
-
-    const user = await User.findOne({ email });
-
-    if (!user) {
-        return res.status(401).json({
-            message: "User not found"
-        });
-    }
-
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordValid) {
-        return res.status(401).json({
-            message: "Invalid password"
-        });
-    }
-    const token = jwt.sign(
-        {
-            userId: user._id,
-            role: user.role
-        },
-        process.env.JWT_SECRET, // secret lives in .env, never hardcode it in the file
-        {
-            expiresIn: "1d" // Token valid for 1 day
+        if (!name || !email || !password) {
+            return res.status(400).json({
+                message: "Name, email, and password are required"
+            });
         }
-    );
 
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-    res.cookie("token", token, { httpOnly: true });
+        await User.create({
+            name,
+            email,
+            password: hashedPassword,
+            role: "user"
+        });
 
-    //Return token to the client
-    res.json({
-        message: "Login successful",
-        token
-    });
+        return res.status(201).json({
+            message: "User registered successfully"
+        });
+    } catch (error) {
+        if (error.code === 11000) {
+            return res.status(409).json({
+                message: "Email is already registered"
+            });
+        }
+
+        console.error("Registration error:", error);
+
+        return res.status(500).json({
+            message: "Registration failed"
+        });
+    }
 };
-
-module.exports = { register, login };
