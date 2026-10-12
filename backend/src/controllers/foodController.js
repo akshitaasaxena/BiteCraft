@@ -40,12 +40,20 @@ const foodController = {
                 });
             }
 
+            if (typeof price !== "number" || isNaN(price) || price < 0) {
+                return res.status(400).json({
+                    message: "Price must be a valid non-negative number"
+                });
+            }
+
             if (
                 typeof name !== "string" ||
+                !name.trim() ||
                 typeof category !== "string" ||
-                typeof price !== "number" ||
-                price < 0 ||
-                (available !== undefined && typeof available !== "boolean")
+                !category.trim() ||
+                (available !== undefined && typeof available !== "boolean") ||
+                (description !== undefined && typeof description !== "string") ||
+                (image !== undefined && typeof image !== "string")
             ) {
                 return res.status(400).json({
                     message: "Invalid food details"
@@ -53,12 +61,12 @@ const foodController = {
             }
 
             const food = await Food.create({
-                name,
-                category,
+                name: name.trim(),
+                category: category.trim(),
                 price,
-                description,
-                available,
-                image
+                description: description ? description.trim() : "",
+                available: available !== undefined ? available : true,
+                image: image ? image.trim() : ""
             });
 
             return res.status(201).json(food);
@@ -72,6 +80,10 @@ const foodController = {
         }
     },
     updateFood: async (req, res) => {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ message: "Invalid food item ID" });
+        }
+
         try {
             const { name, category, price, description, available, image } = req.body;
 
@@ -88,21 +100,36 @@ const foodController = {
                 });
             }
 
+            if (price !== undefined && (typeof price !== "number" || isNaN(price) || price < 0)) {
+                return res.status(400).json({
+                    message: "Price must be a valid non-negative number"
+                });
+            }
+
             if (
-                (name !== undefined && typeof name !== "string") ||
-                (category !== undefined && typeof category !== "string") ||
-                (price !== undefined && (typeof price !== "number" || price < 0)) ||
-                (available !== undefined && typeof available !== "boolean")
+                (name !== undefined && (typeof name !== "string" || !name.trim())) ||
+                (category !== undefined && (typeof category !== "string" || !category.trim())) ||
+                (available !== undefined && typeof available !== "boolean") ||
+                (description !== undefined && typeof description !== "string") ||
+                (image !== undefined && typeof image !== "string")
             ) {
                 return res.status(400).json({
                     message: "Invalid food details"
                 });
             }
 
+            const updateData = {};
+            if (name !== undefined) updateData.name = name.trim();
+            if (category !== undefined) updateData.category = category.trim();
+            if (price !== undefined) updateData.price = price;
+            if (description !== undefined) updateData.description = description.trim();
+            if (available !== undefined) updateData.available = available;
+            if (image !== undefined) updateData.image = image.trim();
+
             const food = await Food.findByIdAndUpdate(
                 req.params.id,
-                req.body,
-                { new: true }
+                updateData,
+                { new: true, runValidators: true }
             );
 
             if (!food) {
@@ -122,21 +149,21 @@ const foodController = {
         }
     },
     deleteFood: async (req, res) => {
-        const id = req.params.id;
-
-        if (!mongoose.isValidObjectId(id)) {
+        if (!mongoose.isValidObjectId(req.params.id)) {
             return res.status(400).json({ message: "Invalid food item ID" });
         }
 
         try {
-            const deletedFood = await Food.findByIdAndDelete(id);
+            const deletedFood = await Food.findByIdAndDelete(req.params.id);
 
             if (!deletedFood) {
                 return res.status(404).json({ message: "Food item not found" });
             }
 
-            return res.json({ message: "Food item deleted successfully" });
-        } catch {
+            return res.status(200).json({ message: "Food item deleted successfully" });
+        } catch (error) {
+            console.error(error);
+
             return res.status(500).json({ message: "Failed to delete food item" });
         }
     }

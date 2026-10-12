@@ -3,20 +3,39 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
 const register = async (req, res) => {
-    const { name, email, password } = req.body;
+    try {
+        const { name, email, password } = req.body;
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+        if (!name || !email || !password) {
+            return res.status(400).json({
+                message: "Name, email, and password are required"
+            });
+        }
 
-    await User.create({
-        name,
-        email,
-        password: hashedPassword,
-        role: "user"
-    });
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-    res.json({
-        message: "User registered successfully"
-    });
+        // Always assign "user" role, even if a different role was sent
+        await User.create({
+            name,
+            email,
+            password: hashedPassword,
+            role: "user"
+        });
+
+        res.status(201).json({
+            message: "User registered successfully"
+        });
+    } catch (error) {
+        if (error.code === 11000) {
+            return res.status(409).json({
+                message: "Email is already registered"
+            });
+        }
+
+        res.status(500).json({
+            message: "Server error during registration"
+        });
+    }
 };
 
 const login = async (req, res) => {

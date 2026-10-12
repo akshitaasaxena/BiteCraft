@@ -7,7 +7,14 @@ const app = express();
 
 connectDB();
 
-app.use(cors());
+const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+
+app.use(
+  cors({
+    origin: clientUrl,
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 const foodRoutes = require("./routes/Foodroutes");
